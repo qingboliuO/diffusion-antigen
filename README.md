@@ -4,7 +4,7 @@
 DiffAD is a novel diffusion-based model designed for predicting antigenic distances in influenza viruses. Our approach leverages receptor binding site (RBS) constraints and learnable attention mechanisms to achieve superior performance in antigenic distance prediction tasks.
 
 ## Model Architecture
-![Model Architecture](diffusion-antigen/model.png)
+![Model Architecture](model.png)
 *Figure 1: Architecture of the DiffAD model showing the diffusion process and attention mechanisms*
 
 ## Key Features
