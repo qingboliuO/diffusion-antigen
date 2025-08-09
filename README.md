@@ -14,13 +14,14 @@ DiffAD is a novel diffusion-based model designed for predicting antigenic distan
 - 📊 Superior performance with only 73.92M parameters
 - 🚀 Outperforms large pre-trained models (ESM2, ProGen2, BioGPT, etc.)
 
-Installation
-bashgit clone https://github.com/qingboliuO/diffusion-antigen.git
+## Installation
+
+git clone https://github.com/qingboliuO/diffusion-antigen.git
 cd diffusion-antigen
 pip install -r requirements.txt
-Environment Information
-Our model was developed and tested with the following environment:
 
+## Environment Information
+Our model was developed and tested with the following environment:
 Python: 3.8.19
 PyTorch: 1.12.0
 CUDA: 11.3
@@ -28,3 +29,4 @@ NumPy: 1.24.3
 Pandas: 2.0.3
 Matplotlib: 3.7.2
 Scikit-learn: 1.3.0
+
