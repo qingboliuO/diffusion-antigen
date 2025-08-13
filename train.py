@@ -16,67 +16,81 @@ from models.model import GCNDecoder
 from VectorMappingSequence import SequenceReverseMapper
 from rbsANDdecompression import rbs, DecompressionNetwork
 
+class LearnablePositionAttention(nn.Module):
+
+    def __init__(self, input_dim=56400, initial_rbs_weight=2.0):
+        super().__init__()
+        self.input_dim = input_dim
+        # RBS位点列表
+        self.rbs_positions = [147, 153, 171, 172, 202, 206, 209, 210, 238, 241,
+                              242, 243]
+
+        # 高频抗体识别位点列表（30次以上）
+        self.high_freq_positions = [202, 241, 235, 176, 209, 172, 160, 156, 158,
+                                    161,
+                                    210, 138, 205, 66, 175, 377, 154, 153, 171,
+                                    230,
+                                    112, 174, 69, 151, 144, 213, 243, 292]
+
+        # 中频抗体识别位点列表（15-30次）
+        self.mid_freq_positions = [188, 199, 91, 147, 149, 206, 212, 363, 208,
+                                   238,
+                                   242, 294, 402, 140, 137, 228, 495, 173]
+
+        # 使用nn.Parameter - 可学习参数
+        self.weight_params = nn.Parameter(torch.ones(input_dim))
+
+        # 初始化权重（按优先级分层设置）
+        with torch.no_grad():
+            # 第一层：设置RBS位点权重为1.2
+            for rbs_pos in self.rbs_positions:
+                start_idx = max(0, (rbs_pos - 3) * 100)
+                end_idx = min(input_dim, rbs_pos * 100)
+                self.weight_params[start_idx:end_idx] = 1.2
+
+            # 第二层：设置中频抗体识别位点权重为2.0（会覆盖重叠的RBS位点）
+            for mid_pos in self.mid_freq_positions:
+                start_idx = max(0, (mid_pos - 3) * 100)
+                end_idx = min(input_dim, mid_pos * 100)
+                self.weight_params[start_idx:end_idx] = 1.3
+
+            # 第三层：设置高频抗体识别位点权重为3.0（会覆盖重叠的中频位点）
+            for high_pos in self.high_freq_positions:
+                start_idx = max(0, (high_pos - 3) * 100)
+                end_idx = min(input_dim, high_pos * 100)
+                self.weight_params[start_idx:end_idx] = 1.5
+
+        print(f"可学习权重注意力初始化:")
+        print(f"  权重类型: 可学习参数")
+        print(f"  初始RBS权重: {initial_rbs_weight}")
+        print(f"  参数数量: {self.weight_params.numel():,}")
+
+    def forward(self, x):
+        # 使用softplus或sigmoid确保权重为正
+        # 方法1: Softplus (输出范围 0 到 +∞)
+        positive_weights = F.softplus(self.weight_params)
+
+        # 方法2: Sigmoid + 缩放 (输出范围 0 到 4)
+        # positive_weights = torch.sigmoid(self.weight_params) * 4.0
+
+        return x * positive_weights.unsqueeze(0)
 def count_parameters(model):
     """计算模型参数量"""
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
-def print_model_parameters():
-    """打印各个模型组件的参数量"""
 
-    # 1. DecompressionNetwork参数量
-    net = DecompressionNetwork(compressed_dim=128, original_dim=56400)
-    net_params = count_parameters(net)
-    print(f"DecompressionNetwork parameters: {net_params:,}")
-
-    # 2. GATModel参数量
-    node_dim = 128  # 从代码中的node_dim
-    num_hidden = 128
-    num_proj_hidden = 64
-    encoder = Encoder(node_dim, num_hidden, F.relu, base_model=GATConv, k=2)
-    encoder_model = GATModel(encoder, num_hidden, num_proj_hidden, node_dim,
-                             0.3)
-    encoder_params = count_parameters(encoder_model)
-    print(f"GATModel parameters: {encoder_params:,}")
-
-    # 3. NodeDiffusionModel参数量（详细分解）
-    diffusion_model = NodeDiffusionModel(
-        node_dim=node_dim,
-        diffusion_steps=100,
-        beta_start=1e-6,
-        beta_end=0.001,
-        hidden_dim=512
-    )
-
-    # 分别计算NodeDiffusionModel内部组件
-    denoise_params = count_parameters(diffusion_model.denoise_net)
-    distance_params = count_parameters(diffusion_model.distance_predictor)
-    diffusion_total = count_parameters(diffusion_model)
-
-    print(f"NodeDiffusionModel components:")
-    print(f"  - Denoising Network: {denoise_params:,}")
-    print(f"  - Distance Predictor: {distance_params:,}")
-    print(f"  - Total NodeDiffusionModel: {diffusion_total:,}")
-
-    # 4. 总参数量
-    total_params = net_params + encoder_params + diffusion_total
-    print(f"\nTotal model parameters: {total_params:,}")
-    print(f"Total model parameters (M): {total_params / 1e6:.2f}M")
-
-    return {
-        'decompression': net_params,
-        'encoder': encoder_params,
-        'denoise_net': denoise_params,
-        'distance_predictor': distance_params,
-        'total': total_params
-    }
-def encoder_train(model: GATModel, x, edge_index):
+def encoder_train(model, attention_layer, x, edge_index):
     model.train()
     encoder_optimizer.zero_grad()
     edge_index_1 = dropout_adj(edge_index, p=0.5)[0]
     edge_index_2 = dropout_adj(edge_index, p=0.5)[0]
     x_1 = drop_feature(x, 0.1)
     x_2 = drop_feature(x, 0.15)
+    x_3 = attention_layer(x_1)
+    x_4 = attention_layer(x_2)
+    x_1 = x_1 + x_3
+    x_2 = x_2 + x_4
     z1 = model(x_1, edge_index_1)
     z2 = model(x_2, edge_index_2)
     Contrastive_loss = model.loss(z1, z2, batch_size=0)
@@ -744,9 +758,7 @@ if __name__ == "__main__":
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using device: {device}")
     mapper = SequenceReverseMapper()
-    # 加载数据
-    print("=== Model Parameter Analysis ===")
-    print_model_parameters()
+
     print("=" * 40)
     gData = graphDataset("h3n2_2021_2612")
     print(f"使用数据集: h3n2_2021_2612")
@@ -762,8 +774,9 @@ if __name__ == "__main__":
 
     print("=== Actual Model Parameters ===")
 
-
-
+    attention = LearnablePositionAttention(input_dim=56400,
+                                           initial_rbs_weight=2.0)
+    attention = attention.to(data.x.device)
     # 图对比学习参数
     encoder_learning_rate = 0.0008
     weight_decay_encoder = 0.0005
