@@ -237,9 +237,7 @@ class GaussianDiffusion:
 
             # 计算RBS保留率
             rbs_retention = rbs(gData.data.virus_sequences, batch_sequences)
-            print(
-                f"RBS保留率: {rbs_retention:.4f} ({rbs_retention * 100:.2f}%)")
-            # 将RBS保留率转换为损失（1 - retention作为损失）
+            
             rbs_loss = (1.0 - rbs_retention)*100
 
         # 组合损失
@@ -935,3 +933,4 @@ if __name__ == "__main__":
     # 保存完整模型
     torch.save(model.state_dict(), "final_node_diffusion_model.pt")
     print("Training complete. Final model saved.")
+
