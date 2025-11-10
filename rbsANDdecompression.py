@@ -318,26 +318,7 @@ if __name__ == "__main__":
                                                         step_size=200,
                                                         gamma=0.9)
     #
-    # 图对比学习训练
-    # start = t()
-    # prev = start
-    # for epoch in range(1, 800):
-    #     encoder_loss = encoder_train(encoder_model, data.x, data.edge_index)
-    #     now = t()
-    #     print(
-    #         f'(T) | Epoch={epoch:03d}, encoderContrastive_loss={encoder_loss:.4f}, '
-    #         f'this epoch {now - prev:.4f}, total {now - start:.4f}')
-    #     prev = now
-    #
-    # print("=== STAGE 1 Completed: Encoder Training ===")
-    #
-    #
-    # encoder_model.eval()
-    # with torch.no_grad():
-    #     compressed_embeddings = encoder_model(data.x, data.edge_index)
-    #
-    # print(f"Original data shape: {data.x.shape}")
-    # print(f"Compressed embeddings shape: {compressed_embeddings.shape}")
+    
 
     # 保存第一阶段模型
     # torch.save(encoder_model.state_dict(), 'stage1_encoder_model.pth')
@@ -357,13 +338,7 @@ if __name__ == "__main__":
     )
 
     # # 训练解压缩网络
-    # trained_decompression_net, training_history = train_decompression_network(
-    #     decompression_model=decompression_net,
-    #     compressed_data=compressed_embeddings,
-    #     original_data=data.x,
-    #     epochs=8000,
-    #     lr=0.001,
-    # )
+   
 
     # 保存第二阶段模型
     # torch.save(trained_decompression_net.state_dict(),
@@ -393,6 +368,7 @@ if __name__ == "__main__":
         )
         # RBS保留率统计
         rbs_retention = rbs(gData.data.virus_sequences, reconstructed_sequences)
-        print(f"RBS保留率: {rbs_retention:.4f} ({rbs_retention * 100:.2f}%)")
+        
+
 
 
